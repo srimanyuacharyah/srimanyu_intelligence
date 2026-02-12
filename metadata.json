@@ -1,0 +1,8 @@
+{
+  "name": "Srimanyu AI",
+  "description": "A premium, high-performance AI assistant capable of text generation, coding, image creation, video synthesis, and project management.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
