@@ -132,7 +132,11 @@ const LiveSession: React.FC = () => {
           },
           onerror: (e) => {
             console.error("Live session error:", e);
-            setStatus("Connection Error");
+            if (e.toString().includes('403') || e.toString().includes('PERMISSION_DENIED')) {
+                setStatus("Access Denied (403)");
+            } else {
+                setStatus("Connection Error");
+            }
             setIsActive(false);
           },
           onclose: () => {
@@ -166,19 +170,26 @@ const LiveSession: React.FC = () => {
     setTranscription([]);
   };
 
+  const changeKey = async () => {
+    // @ts-ignore
+    await window.aistudio?.openSelectKey();
+  };
+
   return (
     <div className="h-full flex flex-col items-center justify-center space-y-12 animate-in fade-in duration-700">
       <div className="relative group">
         <div className={`w-56 h-56 rounded-full flex items-center justify-center transition-all duration-700 ${
           isActive 
             ? 'bg-indigo-500/10 shadow-[0_0_100px_rgba(99,102,241,0.4)]' 
-            : 'bg-slate-800'
+            : status.includes('Error') || status.includes('Denied') 
+                ? 'bg-red-900/20 border-red-500/30' 
+                : 'bg-slate-800'
         }`}>
-          <div className={`w-36 h-36 rounded-full border-2 border-indigo-400/50 flex items-center justify-center ${isActive ? 'animate-pulse' : ''}`}>
-             <div className={`w-24 h-24 rounded-full bg-indigo-500/20 flex items-center justify-center ${isActive ? 'animate-ping' : ''}`}></div>
+          <div className={`w-36 h-36 rounded-full border-2 ${status.includes('Error') ? 'border-red-500/50' : 'border-indigo-400/50'} flex items-center justify-center ${isActive ? 'animate-pulse' : ''}`}>
+             <div className={`w-24 h-24 rounded-full ${status.includes('Error') ? 'bg-red-500/20' : 'bg-indigo-500/20'} flex items-center justify-center ${isActive ? 'animate-ping' : ''}`}></div>
           </div>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-             <i className={`fas ${isActive ? 'fa-signal-stream' : 'fa-microphone'} text-5xl text-indigo-400`}></i>
+             <i className={`fas ${isActive ? 'fa-signal-stream' : 'fa-microphone'} text-5xl ${status.includes('Error') ? 'text-red-400' : 'text-indigo-400'}`}></i>
           </div>
         </div>
 
@@ -191,9 +202,14 @@ const LiveSession: React.FC = () => {
 
       <div className="text-center max-w-lg space-y-4">
         <h2 className="text-4xl font-black tracking-tight gradient-text">{isActive ? 'NEURAL LINK ACTIVE' : 'VOICE INTERFACE'}</h2>
-        <p className="text-slate-400 font-medium">
+        <p className={`font-medium ${status.includes('Error') || status.includes('Denied') ? 'text-red-400' : 'text-slate-400'}`}>
           {status}
         </p>
+        {status.includes('Denied') && (
+            <button onClick={changeKey} className="text-xs text-indigo-400 underline hover:text-white">
+                Change API Key
+            </button>
+        )}
       </div>
 
       <div className="w-full max-w-2xl h-32 glass-panel rounded-2xl p-6 flex flex-col justify-end space-y-1 overflow-hidden">

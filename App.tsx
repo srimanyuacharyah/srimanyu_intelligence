@@ -37,6 +37,11 @@ const App: React.FC = () => {
 
   useEffect(scrollToBottom, [messages, isLoading]);
 
+  const openKeySelector = async () => {
+    // @ts-ignore
+    await window.aistudio?.openSelectKey();
+  };
+
   const handleSend = async (text: string, files: File[]) => {
     if (!text.trim() && files.length === 0) return;
 
@@ -106,18 +111,47 @@ const App: React.FC = () => {
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error: any) {
-      console.error(error);
+      console.error("Assistant Error:", error);
+      
+      // Robust Error Parsing
+      let isPermissionError = false;
+      let displayMessage = error.message || "An unexpected error occurred.";
+
+      // Check for 403 in various forms
+      const errorStr = (JSON.stringify(error) + (error.message || '')).toLowerCase();
+      if (errorStr.includes('403') || errorStr.includes('permission') || errorStr.includes('denied') || errorStr.includes('not found')) {
+        isPermissionError = true;
+      }
+
+      // Try to parse JSON error message if it's a raw string
+      if (typeof displayMessage === 'string' && displayMessage.trim().startsWith('{')) {
+          try {
+              const parsed = JSON.parse(displayMessage);
+              if (parsed.error?.message) {
+                  displayMessage = parsed.error.message;
+              } else if (parsed.message) {
+                  displayMessage = parsed.message;
+              }
+          } catch (e) {
+              // Failed to parse, use original
+          }
+      }
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        contents: [{ type: 'text', text: `System Alert: ${error.message || 'A neural interruption occurred.'}` }],
+        contents: [{ 
+          type: 'text', 
+          text: isPermissionError 
+            ? `ACCESS DENIED (403): Your current API Key cannot access the requested model/tool. Please select a valid key.` 
+            : `SYSTEM ALERT: ${displayMessage}` 
+        }],
         timestamp: Date.now(),
       };
       setMessages(prev => [...prev, errorMessage]);
       
-      if (error.message?.includes("Requested entity was not found")) {
-        // @ts-ignore
-        await window.aistudio?.openSelectKey();
+      if (isPermissionError) {
+        setTimeout(() => openKeySelector(), 1000); // Slight delay for UX
       }
     } finally {
       setIsLoading(false);
@@ -151,10 +185,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-6">
             <ModeSelector currentMode={mode} onModeChange={setMode} />
             <button 
-              onClick={async () => {
-                 // @ts-ignore
-                 await window.aistudio?.openSelectKey();
-              }}
+              onClick={openKeySelector}
               className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all ${
                 apiKeyReady 
                   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
